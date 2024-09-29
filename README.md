@@ -17,7 +17,6 @@ Before editing this source code, in order to follow GPL license, make sure to fo
 
 **Setup**
 1. Download this repository
-2. Run `install.bat` to install the required dependencies
-3. Run `start.bat` :)
+2. Run `start.bat` :)
 
 Note that the bot needs admin permissions to work the right way. If you face bugs, check your server permssions before opening github issues please <3
