@@ -1,15 +1,20 @@
 import discord
+import discord.ext
 from discord.ext import commands
 from discord import ui
 import json
 import os
 import logging
 
+import discord.ext.commands
+
+
 logging.basicConfig(level=logging.ERROR)
 
-GREEN = '\033[92m'
-WHITE = '\033[97m'
-RESET = '\033[0m'
+class colors:
+    GREEN = '\033[92m'
+    WHITE = '\033[97m'
+    RESET = '\033[0m'
 
 intents = discord.Intents.default()
 intents.members = True
@@ -19,65 +24,63 @@ bot = commands.Bot(command_prefix='+', intents=intents)
 
 dmall_active = False
 sent_members = []
-message_to_send = None
-save_file = 'save.json'
 
-def load_message():
-    global message_to_send
-    if os.path.exists(save_file):
-        with open(save_file, 'r') as f:
-            content = f.read().strip()
-            if content:
-                data = json.loads(content)
-                message_to_send = data.get('message', None)
-            else:
-                message_to_send = None
-    else:
-        with open(save_file, 'w') as f:
-            json.dump({'message': ''}, f)
-        message_to_send = None
+class Config:
+    file = 'save.json'
 
-def save_message(message):
-    with open(save_file, 'w') as f:
-        json.dump({'message': message}, f)
+    def load_message() -> str:
+        if os.path.exists(Config.file):
+            with open(Config.file, 'r') as f:
+                content = f.read().strip()
+                if content:
+                    data:dict = json.loads(content)
+                    return data.get('message', None)
+                else:
+                    return None
+        else:
+            with open(Config.file, 'w') as f:
+                json.dump({'message': ''}, f)
+            return None
 
-load_message()
+    def save_message(message):
+        with open(Config.file, 'w') as f:
+            json.dump({'message': message}, f)
 
-class Tsaispasdevtgckaysauxcommandefdp(ui.View):
-    def __init__(self, ctx, embed_message):
+message_to_send = Config.load_message()
+
+class Buttons(ui.View):
+    def __init__(self, ctx: discord.ext.commands.Context, message: discord.Message):
         super().__init__(timeout=None)
-        self.ctx = ctx
-        self.embed_message = embed_message
+        self.ctx: discord.ext.commands.Context = ctx
+        self.message: discord.Message = message
     
+    def check(self, message: discord.Message):
+        return message.author == self.ctx.author and message.channel == self.ctx.channel
+
     @ui.button(label="Modifier", style=discord.ButtonStyle.primary)
     async def modify_message(self, interaction: discord.Interaction, button: ui.Button):
         if interaction.user == self.ctx.author:
             await interaction.response.send_message("Veuillez entrer le nouveau message :")
 
-            def check(m):
-                return m.author == self.ctx.author and m.channel == self.ctx.channel
-
             try:
-                message = await bot.wait_for('message', check=check, timeout=60.0)
-                global message_to_send
+                message = await bot.wait_for('message', check=self.check, timeout=60.0)
                 message_to_send = message.content
                 
-                save_message(message_to_send)
+                Config.save_message(message_to_send)
                 
-                embed = self.embed_message.embeds[0]
+                embed = self.message.embeds[0]
                 embed.set_field_at(0, name="Message:", value=message_to_send, inline=False)
                 
-                await self.embed_message.edit(embed=embed)
+                await self.message.edit(embed=embed)
                 await self.ctx.send(f"Nouveau message enregistré : `{message_to_send}`")
             except:
                 await self.ctx.send("Le temps d'attente pour modifier le message a expiré.")
     
     @ui.button(label="Envoyer", style=discord.ButtonStyle.success)
     async def send_message(self, interaction: discord.Interaction, button: ui.Button):
+        message_to_send = Config.load_message()
+        
         if interaction.user == self.ctx.author:
-            global dmall_active
-            global message_to_send
-
             if not message_to_send:
                 await interaction.response.send_message("Aucun message n'a été enregistré. Veuillez utiliser le bouton Modifier pour entrer un message.", ephemeral=True)
                 return
@@ -92,7 +95,7 @@ class Tsaispasdevtgckaysauxcommandefdp(ui.View):
 
             await interaction.response.defer(ephemeral=True)
 
-            confirmation_message = await interaction.followup.send("0 membres ont reçu le message.", ephemeral=True)
+            confirmation_message: discord.Message = await interaction.followup.send("0 membres ont reçu le message.", ephemeral=True)
 
             members_contacted = 0
 
@@ -111,33 +114,27 @@ class Tsaispasdevtgckaysauxcommandefdp(ui.View):
                         print("L'envoi de DM a été interrompu.")
                         break
                 except discord.Forbidden:
-                    print(f"Impossible d'envoyer un message à {member.name} ({member.id}), ils ont bloqué les messages privés.")
+                    print(f"Impossible d'envoyer un message à {member.name} ({member.id}).")
                 except Exception as e:
                     print(f"Erreur lors de l'envoi à {member.name}: {e}")
 
 @bot.command()
-async def dmall(ctx):
-    global message_to_send
-    
+async def dmall(ctx: discord.ext.commands.Context):
     embed = discord.Embed(title="DM à tous les membres", description="Voici le message qui va être envoyé :")
+    _message = message_to_send if message_to_send else "*Aucun message enregistré*"
+    embed.add_field(name="Message:", value=_message, inline=False)
     
-    if message_to_send:
-        embed.add_field(name="Message:", value=message_to_send, inline=False)
-    else:
-        embed.add_field(name="Message:", value="*Aucun message enregistré*", inline=False)
+    view = Buttons(ctx, message=None)
+    message = await ctx.send(embed=embed, view=view)
     
-    view = Tsaispasdevtgckaysauxcommandefdp(ctx, embed_message=None)
-    embed_message = await ctx.send(embed=embed, view=view)
-    
-    view.embed_message = embed_message
+    view.message = message
 
 @bot.event
-async def on_message(message):
+async def on_message(message: discord.Message):
     if bot.user in message.mentions:
-        await message.channel.send("Fait **+dmall** sale zig")
+        await message.channel.send("Fait **+dmall** pour envoyer un message à tous les membres du serveur.")
     
     await bot.process_commands(message)
 
-token = input(f"{WHITE}[{RESET}{GREEN}+{RESET}{WHITE}] Enter token: ")
-
+token = input(f"{colors.WHITE}[{colors.RESET}{colors.GREEN}+{colors.RESET}{colors.WHITE}] Enter token: ")
 bot.run(token)
