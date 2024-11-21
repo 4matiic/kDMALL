@@ -1,5 +1,5 @@
 # Bot DM ALL by 4matic
-DMall is a simple discord.js bot that DM all the users from a server.
+DMall is a simple discord bot that DM all the users from a server.
 
 Created by [Kays](https://github.com/4matiic). ⭐
 
