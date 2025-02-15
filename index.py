@@ -11,10 +11,6 @@ import discord.ext.commands
 
 logging.basicConfig(level=logging.ERROR)
 
-class colors:
-    GREEN = '\033[92m'
-    WHITE = '\033[97m'
-    RESET = '\033[0m'
 
 intents = discord.Intents.default()
 intents.members = True
@@ -136,5 +132,5 @@ async def on_message(message: discord.Message):
     
     await bot.process_commands(message)
 
-token = input(f"{colors.WHITE}[{colors.RESET}{colors.GREEN}+{colors.RESET}{colors.WHITE}] Enter token: ")
+token = input(f"[+] Enter token: ")
 bot.run(token)
